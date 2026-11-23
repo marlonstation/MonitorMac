@@ -1,0 +1,25 @@
+# macOS metadata
+.DS_Store
+._*
+
+# Local builds and temporary files
+build/
+.build/
+*.o
+*.dSYM/
+
+# Redundant full-project archive
+MonitorMac.zip
+
+# Local secrets and editor settings
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Locally packaged app
+MonitorMac.app.zip
+
+# Local disk image
+MonitorMac.dmg
