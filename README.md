@@ -2,6 +2,8 @@
 
 MonitorMac is a native menu bar app with a compact floating panel. The standard build shows system thermal state and estimated RAM usage, with a ten-minute memory history kept in memory while the app runs.
 
+Choose **Overlay colors → GTA 6 Mode** in the menu bar, or use the floating panel’s palette button. The sunset palette also applies to the Details window and its history charts. The selection is saved between launches.
+
 **Requires an Apple Silicon Mac, macOS 27 or later, and the Xcode Command Line Tools.**
 
 ## Build locally

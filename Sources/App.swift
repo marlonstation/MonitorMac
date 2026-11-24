@@ -10,6 +10,17 @@ struct Theme: Identifiable {
     let accent: NSColor
     let background: NSColor
     let text: NSColor
+    var isGTA6: Bool { id == "gta6" }
+    var sunset: Color { Color(red: 0.33, green: 0.18, blue: 0.31) }
+    var rose: Color { Color(red: 0.95, green: 0.62, blue: 0.71) }
+    var lavender: Color { Color(red: 0.77, green: 0.69, blue: 0.96) }
+    var surface: AnyShapeStyle {
+        if isGTA6 {
+            return AnyShapeStyle(LinearGradient(colors: [sunset, Color(nsColor: background)],
+                                                startPoint: .topTrailing, endPoint: .bottomLeading))
+        }
+        return AnyShapeStyle(Color(nsColor: background))
+    }
     static let all: [Theme] = [
         Theme(id:"cyan",title:"Cyan",accent:.systemCyan,background:NSColor(white:0.08,alpha:1),text:.white),
         Theme(id:"blue",title:"Ocean",accent:.systemBlue,background:NSColor(red:0.025,green:0.06,blue:0.13,alpha:1),text:.white),
@@ -18,7 +29,11 @@ struct Theme: Identifiable {
         Theme(id:"orange",title:"Amber",accent:.systemOrange,background:NSColor(red:0.12,green:0.065,blue:0.02,alpha:1),text:.white),
         Theme(id:"pink",title:"Rose",accent:.systemPink,background:NSColor(red:0.13,green:0.04,blue:0.07,alpha:1),text:.white),
         Theme(id:"mono",title:"Graphite",accent:.white,background:NSColor(white:0.08,alpha:1),text:.white),
-        Theme(id:"light",title:"Light",accent:.systemBlue,background:NSColor(white:0.96,alpha:1),text:NSColor(white:0.08,alpha:1))
+        Theme(id:"light",title:"Light",accent:.systemBlue,background:NSColor(white:0.96,alpha:1),text:NSColor(white:0.08,alpha:1)),
+        Theme(id:"gta6",title:"GTA 6 Mode",
+              accent:NSColor(srgbRed:0.99,green:0.79,blue:0.61,alpha:1),
+              background:NSColor(srgbRed:0.12,green:0.11,blue:0.21,alpha:1),
+              text:NSColor(srgbRed:1,green:0.96,blue:0.94,alpha:1))
     ]
     static func find(_ id: String) -> Theme { all.first{$0.id==id} ?? all[0] }
 }
@@ -103,7 +118,12 @@ struct OverlayView: View {
                     Text(geo.size.width < 160 ? "Monitor" : "MonitorMac").font(.system(size:9*size,weight:.medium)).opacity(0.65)
                     Spacer(minLength:0)
                     Menu {
-                        ForEach(Theme.all) { theme in Button(theme.title) { chooseTheme(theme.id) } }
+                        ForEach(Theme.all) { theme in
+                            Button { chooseTheme(theme.id) } label: {
+                                if theme.id == model.themeID { Label(theme.title, systemImage: "checkmark") }
+                                else { Text(theme.title) }
+                            }
+                        }
                     } label: { Image(systemName:"paintpalette") }
                     .menuStyle(.borderlessButton).fixedSize().help("Overlay colors").accessibilityLabel("Overlay colors")
                     Button(action:toggleLock) { Image(systemName:model.locked ? "lock.fill" : "lock.open") }
@@ -140,7 +160,9 @@ struct OverlayView: View {
                 GeometryReader { bar in
                     Capsule().fill(Color(nsColor:model.theme.text).opacity(0.12))
                         .overlay(alignment:.leading) {
-                            Capsule().fill(Color(nsColor:model.theme.accent))
+                            Capsule().fill(model.theme.isGTA6
+                                           ? AnyShapeStyle(LinearGradient(colors: [model.theme.rose, Color(nsColor: model.theme.accent)], startPoint: .leading, endPoint: .trailing))
+                                           : AnyShapeStyle(Color(nsColor: model.theme.accent)))
                                 .frame(width:bar.size.width * min(1,max(0,(model.snapshot.percent ?? 0)/100)))
                         }
                 }.frame(height:3*size).accessibilityLabel("RAM usage")
@@ -157,8 +179,12 @@ struct OverlayView: View {
             .padding(10*size)
             .frame(width:geo.size.width,height:geo.size.height,alignment:.topLeading)
             .foregroundStyle(Color(nsColor:model.theme.text))
-            .background(Color(nsColor:model.theme.background).opacity(model.opacity),in:RoundedRectangle(cornerRadius:20*size))
-            .overlay(RoundedRectangle(cornerRadius:20*size).stroke(Color(nsColor:model.theme.text).opacity(0.14),lineWidth:1))
+            .background {
+                RoundedRectangle(cornerRadius: 20 * size).fill(model.theme.surface).opacity(model.opacity)
+            }
+            .overlay(RoundedRectangle(cornerRadius:20*size).stroke(
+                (model.theme.isGTA6 ? model.theme.rose.opacity(0.58) : Color(nsColor:model.theme.text).opacity(0.14)),
+                lineWidth:1))
         }
         .preferredColorScheme(model.themeID == "light" ? .light : .dark)
         .environment(\.locale, interfaceLocale)
@@ -384,7 +410,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         resizeStart = nil
     }
     @objc func toggleClickThrough(){clickThrough.toggle();panel.ignoresMouseEvents=clickThrough;defaults.set(clickThrough,forKey:"clickThrough")}
-    func applyTheme(_ id:String){model.themeID=id;defaults.set(id,forKey:"theme")}
+    func applyTheme(_ id: String) {
+        model.themeID = id
+        defaults.set(id, forKey: "theme")
+        detailsWindow?.appearance = model.theme.isGTA6 ? NSAppearance(named: .darkAqua) : nil
+    }
     @objc func setTheme(_ sender:NSMenuItem){if let id=sender.representedObject as? String{applyTheme(id)}}
     @objc func setBarColor(_ sender:NSMenuItem){if let id=sender.representedObject as? String{defaults.set(id,forKey:"barColor");updateStatus()}}
     func resizeOverlay(_ delta:CGSize,ended:Bool){
@@ -600,6 +630,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 495, height: 425),
                                   styleMask: [.titled, .closable, .miniaturizable], backing: .buffered, defer: false)
             window.title = "MonitorMac Details"
+            window.appearance = model.theme.isGTA6 ? NSAppearance(named: .darkAqua) : nil
             window.contentView = NSHostingView(rootView: MetricsDetails(model: model, history: history)
                 .environment(\.locale, interfaceLocale))
             window.isReleasedWhenClosed = false

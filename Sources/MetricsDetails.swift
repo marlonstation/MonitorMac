@@ -24,6 +24,11 @@ final class MetricsHistory: ObservableObject {
 struct MetricsDetails: View {
     @ObservedObject var model: Model
     @ObservedObject var history: MetricsHistory
+    private var themed: Bool { model.theme.isGTA6 }
+    private var cpuColor: Color { themed ? Color(nsColor: model.theme.accent) : .orange }
+    private var gpuColor: Color { themed ? model.theme.lavender : .blue }
+    private var ramColor: Color { themed ? model.theme.rose : .purple }
+    private var labelColor: Color { themed ? Color(nsColor: model.theme.text).opacity(0.78) : .secondary }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
@@ -45,36 +50,38 @@ struct MetricsDetails: View {
                     HStack {
                         Text("Temperatures").font(.headline)
                         Spacer()
-                        legend("CPU", color: .orange)
-                        legend("GPU", color: .blue)
+                        legend("CPU", color: cpuColor)
+                        legend("GPU", color: gpuColor)
                     }
                     let temperatures = history.samples.flatMap { [$0.cpu, $0.gpu].compactMap { $0 } }
                     let lower = max(0, floor(((temperatures.min() ?? 30) - 2) / 10) * 10)
                     let upper = max(lower + 10, ceil(((temperatures.max() ?? 60) + 2) / 10) * 10)
-                    plot(domain: lower...upper, unit: "°C", series: [(\.cpu, .orange), (\.gpu, .blue)])
+                    plot(domain: lower...upper, unit: "°C", series: [(\.cpu, cpuColor), (\.gpu, gpuColor)])
                 }
             }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("RAM usage").font(.headline)
-                plot(domain: 0...100, unit: "%", series: [(\.ram, .purple)])
+                plot(domain: 0...100, unit: "%", series: [(\.ram, ramColor)])
                 HStack {
                     Text("10 minutes ago")
                     Spacer()
                     Text("Latest sample")
-                }.font(.caption).foregroundStyle(.secondary)
+                }.font(.caption).foregroundStyle(labelColor)
             }
 
             Text("History is kept in memory while MonitorMac is running.")
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(labelColor)
         }
         .padding(24)
         .frame(width: 495, height: 425)
+        .foregroundStyle(themed ? Color(nsColor: model.theme.text) : .primary)
+        .background(themed ? model.theme.surface : AnyShapeStyle(Color.clear))
     }
 
     private func detail(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(title).font(.caption).foregroundStyle(labelColor)
             Text(value).font(.headline).monospacedDigit()
         }
     }
@@ -99,7 +106,7 @@ struct MetricsDetails: View {
                 Text("\(Int(domain.upperBound))\(unit)")
                 Spacer()
                 Text("\(Int(domain.lowerBound))\(unit)")
-            }.font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
+            }.font(.caption2.monospacedDigit()).foregroundStyle(labelColor)
             Canvas { context, size in
                 guard let end = history.samples.last?.date else { return }
                 let start = end.addingTimeInterval(-MetricsHistory.duration)
@@ -110,7 +117,7 @@ struct MetricsDetails: View {
                     guides.move(to: CGPoint(x: 0, y: y))
                     guides.addLine(to: CGPoint(x: size.width, y: y))
                 }
-                context.stroke(guides, with: .color(.secondary.opacity(0.2)), lineWidth: 1)
+                context.stroke(guides, with: .color(labelColor.opacity(0.2)), lineWidth: 1)
                 for (key, color) in series {
                     var path = Path()
                     var previous: Date?
@@ -139,7 +146,8 @@ struct MetricsDetails: View {
                     }
                 }
             }
-            .background(.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            .background(themed ? Color.black.opacity(0.23) : Color.secondary.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: 8))
         }.frame(height: 90)
     }
 }
